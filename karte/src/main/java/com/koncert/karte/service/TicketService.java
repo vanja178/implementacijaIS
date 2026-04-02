@@ -26,8 +26,8 @@ public class TicketService {
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
     }
 
-    public TicketResponse createTicket(Ticket ticket, List<Long> regionPriceIds, String promoCode) {
-        ticket.setCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+    public TicketResponse createTicket(Ticket ticket, List<Long> regionPriceIds, String promoCode, String code, String newPromoCode) {
+        ticket.setCode(code);
         ticket.setStatus("ACTIVE");
         ticket.setCreatedAt(LocalDateTime.now());
 
@@ -58,15 +58,15 @@ public class TicketService {
             ticketSeatRepository.save(seat);
         }
 
-        PromoCode newPromoCode = new PromoCode();
-        newPromoCode.setTicket(saved);
-        newPromoCode.setCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        newPromoCode.setStatus("ACTIVE");
-        promoCodeRepository.save(newPromoCode);
+        PromoCode pc = new PromoCode();
+        pc.setTicket(saved);
+        pc.setCode(newPromoCode);
+        pc.setStatus("ACTIVE");
+        promoCodeRepository.save(pc);
 
         ticketEventPublisher.publishTicketCreated(saved.getId());
 
-        return new TicketResponse(saved, newPromoCode.getCode());
+        return new TicketResponse(saved, newPromoCode);
     }
 
     public Ticket addSeats(String code, String email, List<Long> regionPriceIds) {

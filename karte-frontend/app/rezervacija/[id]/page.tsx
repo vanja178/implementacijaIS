@@ -29,7 +29,7 @@ interface FormData {
 export default function Rezervacija({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [selectedRegions, setSelectedRegions] = useState<number[]>([]);
+  const [regionQuantities, setRegionQuantities] = useState<Record<number, number>>({});
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null);
   const [convertedPrice, setConvertedPrice] = useState<number | null>(null);
@@ -68,36 +68,37 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
   }, [id]);
 
   useEffect(() => {
-    if (selectedRegions.length === 0 || !selectedCurrency) {
+    const totalRSD = regions.reduce((sum, region) => {
+      const qty = regionQuantities[region.id] || 0;
+      return sum + (region as any).price * qty;
+    }, 0);
+
+    if (totalRSD === 0) {
       setConvertedPrice(null);
       return;
     }
 
-    const totalRSD = selectedRegions.reduce((sum, regionId) => {
-      const region = regions.find((r) => r.id === regionId);
-      return sum + ((region as any)?.price || 0);
-    }, 0);
-
-    if (selectedCurrency.code === "RSD") {
+    if (selectedCurrency?.code === "RSD") {
       setConvertedPrice(totalRSD);
       return;
     }
 
-    fetch(`http://localhost:8080/api/currencies/convert?amount=${totalRSD}&from=RSD&to=${selectedCurrency.code}`)
-      .then((res) => res.json())
-      .then((data) => setConvertedPrice(data));
-  }, [selectedRegions, selectedCurrency, regions]);
+    if (selectedCurrency) {
+      fetch(`http://localhost:8080/api/currencies/convert?amount=${totalRSD}&from=RSD&to=${selectedCurrency.code}`)
+        .then((res) => res.json())
+        .then((data) => setConvertedPrice(data));
+    }
+  }, [regionQuantities, selectedCurrency, regions]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const toggleRegion = (regionPriceId: number) => {
-    setSelectedRegions((prev) =>
-      prev.includes(regionPriceId)
-        ? prev.filter((r) => r !== regionPriceId)
-        : [...prev, regionPriceId]
-    );
+  const updateQuantity = (regionId: number, delta: number) => {
+    setRegionQuantities((prev) => ({
+      ...prev,
+      [regionId]: Math.max(0, (prev[regionId] || 0) + delta),
+    }));
   };
 
   const handleSubmit = async () => {
@@ -105,7 +106,17 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
       setError("Email adrese se ne poklapaju!");
       return;
     }
-    if (selectedRegions.length === 0) {
+
+    // Kreiramo listu regionPriceIds sa ponavljanjem prema količini
+    const regionPriceIds: number[] = [];
+    regions.forEach((region) => {
+      const qty = regionQuantities[region.id] || 0;
+      for (let i = 0; i < qty; i++) {
+        regionPriceIds.push(region.id);
+      }
+    });
+
+    if (regionPriceIds.length === 0) {
       setError("Morate izabrati bar jedno mesto!");
       return;
     }
@@ -122,7 +133,7 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
       email: formData.email,
     };
 
-    let url = `http://localhost:8080/api/tickets?regionPriceIds=${selectedRegions.join("&regionPriceIds=")}`;
+    let url = `http://localhost:8080/api/tickets?regionPriceIds=${regionPriceIds.join("&regionPriceIds=")}`;
     if (formData.promoCode) {
       url += `&promoCode=${formData.promoCode}`;
     }
@@ -147,7 +158,7 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
       <main className="max-w-2xl mx-auto p-8">
         <h1 className="text-3xl font-bold mb-4">Rezervacija uspešna!</h1>
         <p className="mb-2">Vaša šifra: <strong>{result.ticket?.code}</strong></p>
-        <p className="mb-2">Ukupna cena: <strong>{result.ticket?.totalPrice} RSD</strong></p>
+        <p className="mb-2">Ukupna cena: <strong>{convertedPrice} {selectedCurrency?.code}</strong></p>
         <p className="mb-2">Vaš promo kod za sledeću kupovinu: <strong>{result.promoCode}</strong></p>
         <p className="text-gray-500 text-sm">Sačuvajte šifru i promo kod za kasniji pristup.</p>
       </main>
@@ -191,17 +202,20 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
           <p>Nema dostupnih regiona.</p>
         ) : (
           regions.map((region) => (
-            <div
-              key={region.id}
-              onClick={() => toggleRegion(region.id)}
-              className={`border rounded p-4 mb-2 cursor-pointer ${
-                selectedRegions.includes(region.id)
-                  ? "border-blue-500 bg-blue-50 text-black"
-                  : ""
-              }`}
-            >
+            <div key={region.id} className="border rounded p-4 mb-2">
               <p className="font-medium">{(region as any).region?.name}</p>
-              <p className="text-sm text-gray-500">{(region as any).price} RSD</p>
+              <p className="text-sm text-gray-500">{(region as any).price} RSD po mestu</p>
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  onClick={() => updateQuantity(region.id, -1)}
+                  className="border rounded px-3 py-1 hover:bg-gray-100 hover:text-black"
+                >-</button>
+                <span>{regionQuantities[region.id] || 0}</span>
+                <button
+                  onClick={() => updateQuantity(region.id, 1)}
+                  className="border rounded px-3 py-1 hover:bg-gray-100 hover:text-black"
+                >+</button>
+              </div>
             </div>
           ))
         )}
