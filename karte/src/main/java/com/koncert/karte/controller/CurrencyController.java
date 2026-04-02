@@ -1,10 +1,12 @@
 package com.koncert.karte.controller;
 
 import com.koncert.karte.model.Currency;
+import com.koncert.karte.service.CurrencyConversionService;
 import com.koncert.karte.service.CurrencyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -13,6 +15,7 @@ import java.util.List;
 public class CurrencyController {
 
     private final CurrencyService currencyService;
+    private final CurrencyConversionService currencyConversionService;
 
     @GetMapping
     public ResponseEntity<List<Currency>> getAll() {
@@ -22,6 +25,14 @@ public class CurrencyController {
     @GetMapping("/{id}")
     public ResponseEntity<Currency> getById(@PathVariable Long id) {
         return ResponseEntity.ok(currencyService.getById(id));
+    }
+
+    @GetMapping("/convert")
+    public ResponseEntity<BigDecimal> convert(
+            @RequestParam BigDecimal amount,
+            @RequestParam String from,
+            @RequestParam String to) {
+        return ResponseEntity.ok(currencyConversionService.convert(amount, from, to));
     }
 
     @PostMapping

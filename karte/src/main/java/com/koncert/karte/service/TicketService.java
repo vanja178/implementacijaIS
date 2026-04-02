@@ -1,5 +1,6 @@
 package com.koncert.karte.service;
 
+import com.koncert.karte.dto.TicketResponse;
 import com.koncert.karte.model.*;
 import com.koncert.karte.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -18,20 +19,32 @@ public class TicketService {
     private final PromoCodeRepository promoCodeRepository;
     private final ConcertRegionPriceRepository concertRegionPriceRepository;
     private final DiscountPeriodService discountPeriodService;
+    private final TicketEventPublisher ticketEventPublisher;
 
     public Ticket getByCodeAndEmail(String code, String email) {
         return ticketRepository.findByCodeAndEmail(code, email)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
     }
 
-    public Ticket createTicket(Ticket ticket, List<Long> regionPriceIds) {
+    public TicketResponse createTicket(Ticket ticket, List<Long> regionPriceIds, String promoCode) {
         ticket.setCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         ticket.setStatus("ACTIVE");
         ticket.setCreatedAt(LocalDateTime.now());
 
         BigDecimal total = calculateTotal(ticket.getConcert().getId(), regionPriceIds);
-        ticket.setTotalPrice(total);
 
+        if (promoCode != null && !promoCode.isEmpty()) {
+            PromoCode pc = promoCodeRepository.findByCode(promoCode).orElse(null);
+            if (pc != null && pc.getStatus().equals("ACTIVE")) {
+                BigDecimal promoDiscount = total.multiply(new BigDecimal("0.05"));
+                total = total.subtract(promoDiscount);
+                pc.setStatus("USED");
+                pc.setUsedAt(LocalDateTime.now());
+                promoCodeRepository.save(pc);
+            }
+        }
+
+        ticket.setTotalPrice(total);
         Ticket saved = ticketRepository.save(ticket);
 
         for (Long regionPriceId : regionPriceIds) {
@@ -45,13 +58,60 @@ public class TicketService {
             ticketSeatRepository.save(seat);
         }
 
-        PromoCode promoCode = new PromoCode();
-        promoCode.setTicket(saved);
-        promoCode.setCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        promoCode.setStatus("ACTIVE");
-        promoCodeRepository.save(promoCode);
+        PromoCode newPromoCode = new PromoCode();
+        newPromoCode.setTicket(saved);
+        newPromoCode.setCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        newPromoCode.setStatus("ACTIVE");
+        promoCodeRepository.save(newPromoCode);
 
-        return saved;
+        ticketEventPublisher.publishTicketCreated(saved.getId());
+
+        return new TicketResponse(saved, newPromoCode.getCode());
+    }
+
+    public Ticket addSeats(String code, String email, List<Long> regionPriceIds) {
+        Ticket ticket = getByCodeAndEmail(code, email);
+
+        if (ticket.getStatus().equals("CANCELLED")) {
+            throw new RuntimeException("Karta je otkazana i ne može se izmeniti.");
+        }
+
+        BigDecimal additional = calculateTotal(ticket.getConcert().getId(), regionPriceIds);
+        ticket.setTotalPrice(ticket.getTotalPrice().add(additional));
+
+        for (Long regionPriceId : regionPriceIds) {
+            ConcertRegionPrice crp = concertRegionPriceRepository.findById(regionPriceId)
+                    .orElseThrow(() -> new RuntimeException("Region price not found"));
+            TicketSeat seat = new TicketSeat();
+            seat.setTicket(ticket);
+            seat.setConcertRegionPrice(crp);
+            seat.setSeatNumber(0);
+            seat.setPricePaid(crp.getPrice());
+            ticketSeatRepository.save(seat);
+        }
+
+        Ticket updated = ticketRepository.save(ticket);
+        ticketEventPublisher.publishTicketUpdated(updated.getId());
+        return updated;
+    }
+
+    public Ticket removeSeats(String code, String email, List<Long> seatIds) {
+        Ticket ticket = getByCodeAndEmail(code, email);
+
+        if (ticket.getStatus().equals("CANCELLED")) {
+            throw new RuntimeException("Karta je otkazana i ne može se izmeniti.");
+        }
+
+        for (Long seatId : seatIds) {
+            TicketSeat seat = ticketSeatRepository.findById(seatId)
+                    .orElseThrow(() -> new RuntimeException("Seat not found"));
+            ticket.setTotalPrice(ticket.getTotalPrice().subtract(seat.getPricePaid()));
+            ticketSeatRepository.delete(seat);
+        }
+
+        Ticket updated = ticketRepository.save(ticket);
+        ticketEventPublisher.publishTicketUpdated(updated.getId());
+        return updated;
     }
 
     public Ticket cancelTicket(String code, String email) {
@@ -62,7 +122,9 @@ public class TicketService {
             pc.setStatus("INVALID");
             promoCodeRepository.save(pc);
         });
-        return ticketRepository.save(ticket);
+        Ticket cancelled = ticketRepository.save(ticket);
+        ticketEventPublisher.publishTicketCancelled(cancelled.getId());
+        return cancelled;
     }
 
     private BigDecimal calculateTotal(Long concertId, List<Long> regionPriceIds) {

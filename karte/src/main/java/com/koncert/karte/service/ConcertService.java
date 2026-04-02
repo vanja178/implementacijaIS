@@ -3,6 +3,8 @@ package com.koncert.karte.service;
 import com.koncert.karte.model.Concert;
 import com.koncert.karte.repository.ConcertRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -12,6 +14,7 @@ public class ConcertService {
 
     private final ConcertRepository concertRepository;
 
+    @Cacheable("concerts")
     public List<Concert> getAll() {
         return concertRepository.findAll();
     }
@@ -29,10 +32,12 @@ public class ConcertService {
         return concertRepository.findByLocationId(locationId);
     }
 
+    @CacheEvict(value = "concerts", allEntries = true)
     public Concert save(Concert concert) {
         return concertRepository.save(concert);
     }
 
+    @CacheEvict(value = "concerts", allEntries = true)
     public void delete(Long id) {
         concertRepository.deleteById(id);
     }

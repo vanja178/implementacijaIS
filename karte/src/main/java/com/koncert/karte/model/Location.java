@@ -1,12 +1,13 @@
 package com.koncert.karte.model;
 
+import java.io.Serializable;
 import jakarta.persistence.*;
 import lombok.Data;
 
 @Data
 @Entity
 @Table(name = "locations")
-public class Location {
+public class Location implements Serializable{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
