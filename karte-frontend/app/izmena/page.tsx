@@ -170,6 +170,12 @@ export default function Izmena() {
           <p>Ukupna cena: <strong>{ticket.totalPrice} RSD</strong></p>
           <p>Status: <strong>{ticket.status}</strong></p>
 
+          {ticket.status === "CANCELLED" && (
+            <p className="mt-4 text-red-500 font-medium">
+              Ova karta je otkazana i ne može se ponovo aktivirati niti menjati.
+            </p>
+          )}
+
           {ticket.status === "ACTIVE" && (
             <>
               <div className="mt-6">
