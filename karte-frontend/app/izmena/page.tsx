@@ -34,7 +34,7 @@ export default function Izmena() {
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [seats, setSeats] = useState<TicketSeat[]>([]);
   const [availableRegions, setAvailableRegions] = useState<RegionPrice[]>([]);
-  const [selectedNewRegions, setSelectedNewRegions] = useState<number[]>([]);
+  const [regionQuantities, setRegionQuantities] = useState<Record<number, number>>({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -82,17 +82,33 @@ export default function Izmena() {
     }
   };
 
+  const updateQuantity = (regionId: number, delta: number) => {
+    setRegionQuantities((prev) => ({
+      ...prev,
+      [regionId]: Math.max(0, (prev[regionId] || 0) + delta),
+    }));
+  };
+
   const addSeats = async () => {
-    if (selectedNewRegions.length === 0) {
+    const regionPriceIds: number[] = [];
+    availableRegions.forEach((region) => {
+      const qty = regionQuantities[region.id] || 0;
+      for (let i = 0; i < qty; i++) {
+        regionPriceIds.push(region.id);
+      }
+    });
+
+    if (regionPriceIds.length === 0) {
       setError("Izaberite bar jedno mesto za dodavanje.");
       return;
     }
-    const url = `http://localhost:8080/api/tickets/add-seats?code=${code}&email=${email}&regionPriceIds=${selectedNewRegions.join("&regionPriceIds=")}`;
+
+    const url = `http://localhost:8080/api/tickets/add-seats?code=${code}&email=${email}&regionPriceIds=${regionPriceIds.join("&regionPriceIds=")}`;
     const res = await fetch(url, { method: "POST" });
     if (res.ok) {
       const data = await res.json();
       setTicket(data);
-      setSelectedNewRegions([]);
+      setRegionQuantities({});
       setSuccess("Mesta su uspešno dodana.");
       setError("");
     } else {
@@ -100,7 +116,7 @@ export default function Izmena() {
     }
   };
 
-  const removeSeat = async (seatId: number, pricePaid: number) => {
+  const removeSeat = async (seatId: number) => {
     const url = `http://localhost:8080/api/tickets/remove-seats?code=${code}&email=${email}&seatIds=${seatId}`;
     const res = await fetch(url, { method: "POST" });
     if (res.ok) {
@@ -112,14 +128,6 @@ export default function Izmena() {
     } else {
       setError("Greška pri uklanjanju mesta.");
     }
-  };
-
-  const toggleNewRegion = (regionPriceId: number) => {
-    setSelectedNewRegions((prev) =>
-      prev.includes(regionPriceId)
-        ? prev.filter((r) => r !== regionPriceId)
-        : [...prev, regionPriceId]
-    );
   };
 
   return (
@@ -176,7 +184,7 @@ export default function Izmena() {
                         <p className="text-sm text-gray-500">{seat.pricePaid} RSD</p>
                       </div>
                       <button
-                        onClick={() => removeSeat(seat.id, seat.pricePaid)}
+                        onClick={() => removeSeat(seat.id)}
                         className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
                       >
                         Ukloni
@@ -189,17 +197,20 @@ export default function Izmena() {
               <div className="mt-6">
                 <h3 className="text-lg font-semibold mb-2">Dodaj nova mesta</h3>
                 {availableRegions.map((region) => (
-                  <div
-                    key={region.id}
-                    onClick={() => toggleNewRegion(region.id)}
-                    className={`border rounded p-3 mb-2 cursor-pointer ${
-                      selectedNewRegions.includes(region.id)
-                        ? "border-blue-500 bg-blue-50 text-black"
-                        : ""
-                    }`}
-                  >
+                  <div key={region.id} className="border rounded p-3 mb-2">
                     <p className="font-medium">{(region as any).region?.name}</p>
-                    <p className="text-sm text-gray-500">{region.price} RSD</p>
+                    <p className="text-sm text-gray-500">{region.price} RSD po mestu</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <button
+                        onClick={() => updateQuantity(region.id, -1)}
+                        className="border rounded px-3 py-1 hover:bg-gray-100 hover:text-black"
+                      >-</button>
+                      <span>{regionQuantities[region.id] || 0}</span>
+                      <button
+                        onClick={() => updateQuantity(region.id, 1)}
+                        className="border rounded px-3 py-1 hover:bg-gray-100 hover:text-black"
+                      >+</button>
+                    </div>
                   </div>
                 ))}
                 <button
