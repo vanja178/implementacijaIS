@@ -1,7 +1,10 @@
 package com.koncert.karte.service;
 
 import com.koncert.karte.config.RabbitMQConfig;
+import com.koncert.karte.model.ConcertRegionPrice;
 import com.koncert.karte.model.Ticket;
+import com.koncert.karte.repository.ConcertRegionPriceRepository;
+import com.koncert.karte.repository.TicketSeatRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -15,6 +18,8 @@ public class TicketCreateListener {
 
     private final TicketService ticketService;
     private final ObjectMapper objectMapper;
+    private final ConcertRegionPriceRepository concertRegionPriceRepository;
+    private final TicketSeatRepository ticketSeatRepository;
 
     @RabbitListener(queues = RabbitMQConfig.TICKET_CREATE_QUEUE)
     public void handleTicketCreate(Map<String, Object> message) {
@@ -25,6 +30,20 @@ public class TicketCreateListener {
             String promoCode = (String) message.get("promoCode");
             String code = (String) message.get("code");
             String newPromoCode = (String) message.get("newPromoCode");
+
+            // Provera kapaciteta za svaki region
+            for (Long regionPriceId : regionPriceIds) {
+                ConcertRegionPrice crp = concertRegionPriceRepository.findById(regionPriceId)
+                        .orElseThrow(() -> new RuntimeException("Region price not found"));
+                
+                long capacity = crp.getRegion().getCapacity();
+                long sold = ticketSeatRepository.countActiveByRegionId(crp.getRegion().getId());
+                
+                if (sold >= capacity) {
+                    System.err.println("Nema slobodnih mesta u regionu: " + crp.getRegion().getName());
+                    return;
+                }
+            }
 
             ticketService.createTicket(ticket, regionPriceIds, promoCode, code, newPromoCode);
         } catch (Exception e) {

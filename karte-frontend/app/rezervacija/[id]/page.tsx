@@ -149,8 +149,9 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
       setResult(data);
       setError("");
     } else {
-      setError("Došlo je do greške pri rezervaciji.");
-    }
+  const data = await res.json();
+  setError(data.error || "Došlo je do greške pri rezervaciji.");
+}
   };
 
   if (result) {
