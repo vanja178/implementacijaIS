@@ -132,7 +132,7 @@ export default function Izmena() {
 
   return (
     <main className="max-w-2xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">Izmena / Otkazivanje karte</h1>
+      <h1 className="text-3xl font-bold mb-8">Izmena i otkazivanje karte</h1>
 
       <div className="flex flex-col gap-4 mb-8">
         <div>

@@ -14,6 +14,13 @@ interface Currency {
   name: string;
 }
 
+interface Concert {
+  id: number;
+  name: string;
+  dateTime: string;
+  location: { name: string };
+}
+
 interface FormData {
   firstName: string;
   lastName: string;
@@ -28,6 +35,7 @@ interface FormData {
 
 export default function Rezervacija({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const [concert, setConcert] = useState<Concert | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
   const [regionQuantities, setRegionQuantities] = useState<Record<number, number>>({});
   const [currencies, setCurrencies] = useState<Currency[]>([]);
@@ -48,14 +56,15 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
   const [error, setError] = useState("");
 
   useEffect(() => {
+    fetch(`http://localhost:8080/api/concerts/${id}`)
+      .then((res) => res.json())
+      .then((data) => setConcert(data));
+
     fetch(`http://localhost:8080/api/concert-region-prices/concert/${id}`)
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) {
-          setRegions(data);
-        } else {
-          setRegions([]);
-        }
+        if (Array.isArray(data)) setRegions(data);
+        else setRegions([]);
       });
 
     fetch("http://localhost:8080/api/currencies")
@@ -107,7 +116,6 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
       return;
     }
 
-    // Kreiramo listu regionPriceIds sa ponavljanjem prema količini
     const regionPriceIds: number[] = [];
     regions.forEach((region) => {
       const qty = regionQuantities[region.id] || 0;
@@ -149,9 +157,9 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
       setResult(data);
       setError("");
     } else {
-  const data = await res.json();
-  setError(data.error || "Došlo je do greške pri rezervaciji.");
-}
+      const data = await res.json();
+      setError(data.error || "Došlo je do greške pri rezervaciji.");
+    }
   };
 
   if (result) {
@@ -168,7 +176,15 @@ export default function Rezervacija({ params }: { params: Promise<{ id: string }
 
   return (
     <main className="max-w-2xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">Rezervacija karte</h1>
+      <h1 className="text-3xl font-bold mb-2">Rezervacija karte</h1>
+
+      {concert && (
+        <div className="border rounded-lg p-4 mb-8 bg-blue-50 text-black">
+          <h2 className="text-xl font-bold">{concert.name}</h2>
+          <p className="text-gray-600">{concert.location?.name}</p>
+          <p className="text-gray-500 text-sm">{new Date(concert.dateTime).toLocaleString("sr-RS")}</p>
+        </div>
+      )}
 
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
