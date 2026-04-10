@@ -19,6 +19,7 @@ public class TicketEventListener {
         Long ticketId = ((Number) event.get("ticketId")).longValue();
         String concertName = (String) event.getOrDefault("concertName", "");
         String locationName = (String) event.getOrDefault("locationName", "");
+        Long seatCount = event.get("seatCount") != null ? ((Number) event.get("seatCount")).longValue() : 1L;
 
         if ("TICKET_CREATED".equals(eventType)) {
             TicketStat stat = new TicketStat();
@@ -27,6 +28,7 @@ public class TicketEventListener {
             stat.setStatus("ACTIVE");
             stat.setConcertName(concertName);
             stat.setLocationName(locationName);
+            stat.setSeatCount(seatCount);
             ticketStatService.save(stat);
         } else if ("TICKET_UPDATED".equals(eventType)) {
             ticketStatService.updateStatus(ticketId, "ACTIVE");

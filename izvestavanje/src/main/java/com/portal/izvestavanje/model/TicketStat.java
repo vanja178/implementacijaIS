@@ -17,4 +17,5 @@ public class TicketStat {
     private String locationName;
     private String status;
     private String eventType;
+    private Long seatCount;
 }
