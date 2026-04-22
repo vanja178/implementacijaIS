@@ -90,6 +90,7 @@ public class TicketService {
             ticketSeatRepository.save(seat);
         }
 
+        ticketSeatRepository.flush();
         Ticket updated = ticketRepository.save(ticket);
         ticketEventPublisher.publishTicketUpdated(updated.getId());
         return updated;
@@ -109,6 +110,7 @@ public class TicketService {
             ticketSeatRepository.delete(seat);
         }
 
+        ticketSeatRepository.flush();
         Ticket updated = ticketRepository.save(ticket);
         ticketEventPublisher.publishTicketUpdated(updated.getId());
         return updated;

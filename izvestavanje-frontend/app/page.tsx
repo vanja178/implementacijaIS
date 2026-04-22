@@ -11,21 +11,31 @@ export default function Home() {
   const [concertStats, setConcertStats] = useState<StatItem[]>([]);
   const [locationStats, setLocationStats] = useState<StatItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
+  const fetchData = () => {
+    return Promise.all([
       fetch("http://localhost:8081/api/stats/concerts").then((res) => res.json()),
       fetch("http://localhost:8081/api/stats/locations").then((res) => res.json()),
     ]).then(([concerts, locations]) => {
       setConcertStats(concerts.map((item: any[]) => ({ name: item[0], count: Number(item[1]) })));
       setLocationStats(locations.map((item: any[]) => ({ name: item[0], count: Number(item[1]) })));
-      setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    fetchData().then(() => setLoading(false));
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
 
   if (loading) return <main className="max-w-4xl mx-auto p-8"><p>Učitavanje...</p></main>;
 
-  return (
+ return (
     <main className="max-w-4xl mx-auto p-8">
       <h1 className="text-3xl font-bold mb-2">Portal za izveštavanje</h1>
       <p className="text-gray-500 mb-8">Pregled prodatih karata po koncertima i lokacijama.</p>
@@ -54,7 +64,7 @@ export default function Home() {
         )}
       </div>
 
-      <div>
+      <div className="mb-10">
         <h2 className="text-xl font-semibold mb-4">Karte po lokacijama</h2>
         {locationStats.length === 0 ? (
           <p className="text-gray-500">Nema podataka.</p>
@@ -77,6 +87,14 @@ export default function Home() {
           </table>
         )}
       </div>
+
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+      >
+        {refreshing ? "Osvežavanje..." : "Osveži podatke"}
+      </button>
     </main>
   );
 }

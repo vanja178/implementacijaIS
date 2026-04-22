@@ -32,4 +32,13 @@ public class TicketStatService {
                     ticketStatRepository.save(t);
                 });
     }
+
+    public void updateSeatCount(Long ticketId, Long seatCount) {
+        ticketStatRepository.findAll().stream()
+                .filter(t -> t.getTicketId().equals(ticketId))
+                .forEach(t -> {
+                    t.setSeatCount(seatCount);
+                    ticketStatRepository.save(t);
+                });
+    }
 }

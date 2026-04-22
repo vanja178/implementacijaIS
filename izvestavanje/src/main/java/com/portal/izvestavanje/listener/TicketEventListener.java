@@ -31,7 +31,7 @@ public class TicketEventListener {
             stat.setSeatCount(seatCount);
             ticketStatService.save(stat);
         } else if ("TICKET_UPDATED".equals(eventType)) {
-            ticketStatService.updateStatus(ticketId, "ACTIVE");
+            ticketStatService.updateSeatCount(ticketId, seatCount);
         } else if ("TICKET_CANCELLED".equals(eventType)) {
             ticketStatService.updateStatus(ticketId, "CANCELLED");
         }
