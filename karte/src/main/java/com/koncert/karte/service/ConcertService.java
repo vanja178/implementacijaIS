@@ -1,7 +1,9 @@
 package com.koncert.karte.service;
 
 import com.koncert.karte.model.Concert;
+import com.koncert.karte.repository.ConcertRegionPriceRepository;
 import com.koncert.karte.repository.ConcertRepository;
+import com.koncert.karte.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,6 +15,8 @@ import java.util.List;
 public class ConcertService {
 
     private final ConcertRepository concertRepository;
+    private final TicketRepository ticketRepository;
+    private final ConcertRegionPriceRepository concertRegionPriceRepository;
 
     @Cacheable("concerts")
     public List<Concert> getAll() {
@@ -39,6 +43,12 @@ public class ConcertService {
 
     @CacheEvict(value = "concerts", allEntries = true)
     public void delete(Long id) {
+        if (!ticketRepository.findByConcertId(id).isEmpty()) {
+            throw new RuntimeException("Ne mozete obrisati koncert koji ima kupljene karte.");
+        }
+        if (!concertRegionPriceRepository.findByConcertId(id).isEmpty()) {
+            throw new RuntimeException("Ne mozete obrisati koncert koji ima definisane cene karata.");
+        }
         concertRepository.deleteById(id);
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/currencies")
@@ -47,8 +48,12 @@ public class CurrencyController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        currencyService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        try {
+            currencyService.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

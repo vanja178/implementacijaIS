@@ -1,7 +1,9 @@
 package com.koncert.karte.service;
 
 import com.koncert.karte.model.SeatingRegion;
+import com.koncert.karte.repository.ConcertRegionPriceRepository;
 import com.koncert.karte.repository.SeatingRegionRepository;
+import com.koncert.karte.repository.TicketSeatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -11,6 +13,8 @@ import java.util.List;
 public class SeatingRegionService {
 
     private final SeatingRegionRepository seatingRegionRepository;
+    private final ConcertRegionPriceRepository concertRegionPriceRepository;
+    private final TicketSeatRepository ticketSeatRepository;
 
     public List<SeatingRegion> getAll() {
         return seatingRegionRepository.findAll();
@@ -30,6 +34,10 @@ public class SeatingRegionService {
     }
 
     public void delete(Long id) {
+        long activeSeats = ticketSeatRepository.countActiveByRegionId(id);
+        if (activeSeats > 0) {
+            throw new RuntimeException("Ne mozete obrisati region koji ima kupljene karte.");
+        }
         seatingRegionRepository.deleteById(id);
     }
 }

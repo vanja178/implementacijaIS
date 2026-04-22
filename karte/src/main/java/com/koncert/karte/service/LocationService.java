@@ -1,7 +1,9 @@
 package com.koncert.karte.service;
 
 import com.koncert.karte.model.Location;
+import com.koncert.karte.repository.ConcertRepository;
 import com.koncert.karte.repository.LocationRepository;
+import com.koncert.karte.repository.SeatingRegionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -11,6 +13,8 @@ import java.util.List;
 public class LocationService {
 
     private final LocationRepository locationRepository;
+    private final ConcertRepository concertRepository;
+    private final SeatingRegionRepository seatingRegionRepository;
 
     public List<Location> getAll() {
         return locationRepository.findAll();
@@ -26,6 +30,12 @@ public class LocationService {
     }
 
     public void delete(Long id) {
+        if (!concertRepository.findByLocationId(id).isEmpty()) {
+            throw new RuntimeException("Ne možete obrisati lokaciju koja ima zakazane koncerte.");
+        }
+        if (!seatingRegionRepository.findByLocationId(id).isEmpty()) {
+            throw new RuntimeException("Ne možete obrisati lokaciju koja ima regione sedenja.");
+        }
         locationRepository.deleteById(id);
     }
 }

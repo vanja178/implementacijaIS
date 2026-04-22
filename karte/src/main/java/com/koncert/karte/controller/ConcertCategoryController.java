@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/concert-categories")
@@ -36,8 +37,12 @@ public class ConcertCategoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        concertCategoryService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        try {
+            concertCategoryService.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.koncert.karte.service;
 
 import com.koncert.karte.model.ConcertCategory;
 import com.koncert.karte.repository.ConcertCategoryRepository;
+import com.koncert.karte.repository.ConcertRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 public class ConcertCategoryService {
 
     private final ConcertCategoryRepository concertCategoryRepository;
+    private final ConcertRepository concertRepository;
 
     public List<ConcertCategory> getAll() {
         return concertCategoryRepository.findAll();
@@ -26,6 +28,9 @@ public class ConcertCategoryService {
     }
 
     public void delete(Long id) {
+        if (!concertRepository.findByCategoryId(id).isEmpty()) {
+            throw new RuntimeException("Ne mozete obrisati kategoriju koja ima zakazane koncerte.");
+        }
         concertCategoryRepository.deleteById(id);
     }
 }

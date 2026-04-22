@@ -2,6 +2,7 @@ package com.koncert.karte.service;
 
 import com.koncert.karte.model.Currency;
 import com.koncert.karte.repository.CurrencyRepository;
+import com.koncert.karte.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 public class CurrencyService {
 
     private final CurrencyRepository currencyRepository;
+    private final TicketRepository ticketRepository;
 
     public List<Currency> getAll() {
         return currencyRepository.findAll();
@@ -31,6 +33,9 @@ public class CurrencyService {
     }
 
     public void delete(Long id) {
+        if (!ticketRepository.findByCurrencyId(id).isEmpty()) {
+            throw new RuntimeException("Ne mozete obrisati valutu koja se koristi u kartama.");
+        }
         currencyRepository.deleteById(id);
     }
 }
